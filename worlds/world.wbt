@@ -1,0 +1,76 @@
+#VRML_SIM R2025a utf8
+
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/backgrounds/protos/TexturedBackground.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/backgrounds/protos/TexturedBackgroundLight.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/floors/protos/RectangleArena.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/appearances/protos/Parquetry.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/vehicles/protos/bmw/BmwX5.proto"
+
+WorldInfo {
+}
+Viewpoint {
+  orientation -0.025642771375971374 -0.9783431794746007 0.20539491583700104 6.029447986881686
+  position -4.748265788776941 6.73398306896736 2.5500012214337433
+}
+TexturedBackground {
+}
+TexturedBackgroundLight {
+}
+RectangleArena {
+  translation 0 -1 0
+  floorSize 400 400
+  floorAppearance Parquetry {
+    type "light strip"
+  }
+}
+DEF car BmwX5 {
+  hidden position_0_0 1.3114913541898686e-10
+  hidden position2_0_0 189.6119293844951
+  hidden position_0_1 1.2162867429551298e-10
+  hidden position2_0_1 189.61674489350264
+  hidden position_0_2 115.44223130755259
+  hidden position_0_3 116.56363173778408
+  hidden linearVelocity_0 -4.956510366668403e-08 1.5204235169466181e-07 -1.325174351222813e-09
+  hidden angularVelocity_0 -4.7282412111149054e-07 -1.5441846213487621e-07 -6.919948123799581e-09
+  hidden translation_1 0 0 0
+  hidden rotation_1 -6.557456770949343e-11 -1 -1.0501607277092278e-10 1.1163701691075185
+  hidden linearVelocity_1 -2.9999810217151755e-08 1.1148850298538513e-07 -3.619396150523383e-07
+  hidden angularVelocity_1 -4.814037567654229e-07 -1.5335345680905895e-07 -7.004700541567378e-09
+  hidden translation_2 0 0 0
+  hidden rotation_2 6.08143371477565e-11 1 -9.687271515539704e-11 1.1211856781150473
+  hidden linearVelocity_2 -4.143193884843778e-08 1.0778292428515077e-07 3.630592200694799e-07
+  hidden angularVelocity_2 -4.792387962795038e-07 -1.600357962214209e-07 -7.004708636972881e-09
+  hidden translation_3 0 0 0
+  hidden rotation_3 0 -1 0 2.3448957783200326
+  hidden linearVelocity_3 -2.7624812608142982e-08 1.0057243482096875e-07 -3.6717375993854755e-07
+  hidden angularVelocity_3 -4.857818114544981e-07 -1.441667239590344e-07 -6.946689962517701e-09
+  hidden translation_4 0 0 0
+  hidden rotation_4 0 1 0 3.4662962085515217
+  hidden linearVelocity_4 -3.696998859672405e-08 9.75430631010003e-08 3.620694524215651e-07
+  hidden angularVelocity_4 -4.777046231099615e-07 -1.690952963113576e-07 -6.9467110189382395e-09
+  translation 37.25321784090252 -3.8733311137323008 -0.029444827706423413
+  rotation 0.010897285353403102 -0.06896759505648856 0.9975593816931655 0.3141053745908095
+  name "car"
+  controller "car_controller"
+  supervisor TRUE
+}
+
+DEF redEnd Robot {
+  translation 23.5 55.5 0
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 0.666667 0 0
+        metalness 0
+      }
+      geometry Box {
+        size 1 1 10
+      }
+    }
+  ]
+  name "redEnd"
+  boundingObject Box {
+    size 1 1 10
+  }
+  supervisor TRUE
+}
