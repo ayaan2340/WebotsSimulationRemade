@@ -1,7 +1,14 @@
 from controller import Supervisor, Keyboard
+import numpy as np
+import random
+import math
+import pickle
 
 max_steering_angle = 0.5
 max_speed = 30
+road_length = 70
+road_width = 10
+
 
 class CarController(Supervisor):
     def __init__(self):
@@ -12,6 +19,13 @@ class CarController(Supervisor):
         if self.car_node is None:
             raise ValueError("Robot node with DEF name 'car' not found.")
         self.initialize_devices()
+        
+        self.kp = 0.05  # Proportional gain
+        self.ki = 0  # Integral gain
+        self.kd = 4   # Derivative gain
+        
+        self.prev_error = 0
+        self.integral = 0
 
     def initialize_devices(self):
         self.left_steer = self.getDevice("left_steer")
@@ -34,8 +48,6 @@ class CarController(Supervisor):
         self.left_steer.setPosition(angle);
         self.right_steer.setPosition(angle);
     
-    def get_position(self):
-        return self.car_node.getPosition()
         
     def teleport_obj(self, obj, position):
         obj.getField("translation").setSFVec3f(position)
@@ -62,9 +74,92 @@ class CarController(Supervisor):
             
             self.set_speed(speed)
             self.set_steering(steering_angle)
+            
+        
+    def get_distance(self):
+        car_pos = np.array(self.car_node.getPosition())
+        end_pos = np.array(self.end.getPosition())
+        distance = np.linalg.norm(car_pos - end_pos)
+        return distance
+        
+    def build_roads(self):
+        global road_width, road_length
+        root = self.getRoot()
+        children_field = root.getField('children')
 
+        # Define road segment as a function for reusability
+        def create_horizontal_road(x, y):
+            x = x - 35
+            return f"""
+            StraightRoadSegment {{
+              translation {x} {y} 0.1
+              rotation 0 0 1 0
+              rightBorder FALSE
+              leftBorder FALSE
+              length {road_length}
+              width {road_width}
+              numberOfLanes 1
+            }}
+            """
+        def create_vertical_road(x, y):
+            y = y - 35
+            return f"""
+            StraightRoadSegment {{
+              translation {x} {y} 0.1
+              rotation 0 0 1 1.57
+              rightBorder FALSE
+              leftBorder FALSE
+              length {road_length}
+              width {road_width}
+              numberOfLanes 1
+            }}
+            """
+
+        # def create_intersection(x, y):
+            # return f"""
+            # RoadIntersection {{
+              # translation {x} {y} 0
+            # }}
+            # """
+
+        # Add horizontal roads
+        children_field.importMFNodeFromString(-1, create_horizontal_road(0, 20))
+        children_field.importMFNodeFromString(-1, create_horizontal_road(0, -20))
+
+        # Add vertical roads
+        children_field.importMFNodeFromString(-1, create_vertical_road(-20, 0))  # 90-degree rotation
+        children_field.importMFNodeFromString(-1, create_vertical_road(20, 0))
+    
+    def get_road_center_error(self):
+        car_pos = self.car_node.getPosition()
+        left_pos = 25
+        right_pos = 15
+        
+        road_center_x = (left_pos + right_pos) / 2
+        car_x = car_pos[1]
+        
+        return road_center_x - car_x  # Positive if car is right of center, negative if left
+    
+
+    def pid_control(self):
+        error = self.get_road_center_error()
+        self.integral += error
+        derivative = error - self.prev_error
+        
+        steering_angle = (self.kp * error) + (self.ki * self.integral) + (self.kd * derivative)
+        steering_angle = max(-max_steering_angle, min(max_steering_angle, steering_angle))  # Clamp angle
+        print(steering_angle)
+        self.prev_error = error
+        return steering_angle
+        
+    def drive_autonomously(self):
+        while self.step(self.time_step) != -1:
+            steering_angle = self.pid_control()
+            self.set_speed(5)
+            self.set_steering(steering_angle)
 
 # Enter here exit cleanup code.
 if __name__ == '__main__':
     controller = CarController()
-    controller.drive_manually()
+    controller.build_roads()
+    controller.drive_autonomously()
