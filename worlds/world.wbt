@@ -34,21 +34,46 @@ RectangleArena {
   }
 }
 DEF car BmwX5 {
-  hidden position_0_0 -5.829567455220295e-10
-  hidden position2_0_0 26697.757073202512
-  hidden position_0_1 1.1592743301025093e-09
-  hidden position2_0_1 26696.95387158856
-  hidden position_0_2 17668.787813325605
-  hidden position_0_3 18480.87323210638
-  hidden rotation_1 -2.914783727610148e-10 1 -1.1351198052237443e-09 5.780482310730125
-  hidden rotation_2 5.796371650512547e-10 1 3.8287620069645184e-09 5.982686689677661
-  hidden rotation_3 0 -1 0 0.47072953660821165
-  hidden rotation_4 0 -1 0 4.257941615963541
-  translation 17.4729 18.9754 0.312629
-  rotation 0.0027055434333901514 -0.0008899055813440392 0.9999959440431677 2.506086276976348
+  hidden position_0_0 0.060477331724668223
+  hidden position2_0_0 26806.240214571986
+  hidden position_0_1 0.06064289728834898
+  hidden position2_0_1 26805.607334905468
+  hidden position_0_2 17774.665407329503
+  hidden position_0_3 18589.42409838398
+  hidden rotation_1 -0.030230221959334024 -0.9994160323140651 -0.01592884282994605 2.172175878088572
+  hidden rotation_2 0.0303019609040462 0.999051009991121 -0.031286907822452734 1.5397634466786032
+  hidden rotation_3 0 -1 0 5.8173586256325125
+  hidden rotation_4 0 1 0 3.7619597467640915
+  translation 19.3297 22.8581 0.318272
+  rotation 0.00222031731319971 -1.1606312881321987e-05 0.9999975350251231 3.125965465001674
   name "car"
   controller "car_controller"
   supervisor TRUE
+  sensorsSlotTop [
+    Camera {
+      translation 1 1 1
+      width 196
+      height 128
+      children [
+        Pose {
+          rotation 0 -1 0 1.5708
+          children [
+            Shape {
+              appearance PBRAppearance {
+                baseColor 0.8 0.8 0.8
+                roughness 1
+                metalness 0
+              }
+              geometry Cylinder {
+                height 0.1
+                radius 0.04
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
 }
 DEF redEnd Robot {
   translation 20 20 0
@@ -68,41 +93,4 @@ DEF redEnd Robot {
     size 1 1 10
   }
   supervisor TRUE
-}
-StraightRoadSegment {
-  translation -35 20 0.1
-  width 10
-  numberOfLanes 1
-  rightBorder FALSE
-  leftBorder FALSE
-  length 70
-}
-StraightRoadSegment {
-  translation -35 -20 0.1
-  name "road(1)"
-  width 10
-  numberOfLanes 1
-  rightBorder FALSE
-  leftBorder FALSE
-  length 70
-}
-StraightRoadSegment {
-  translation -20 -35 0.1
-  rotation 0 0 1 1.57
-  name "road(2)"
-  width 10
-  numberOfLanes 1
-  rightBorder FALSE
-  leftBorder FALSE
-  length 70
-}
-StraightRoadSegment {
-  translation 20 -35 0.1
-  rotation 0 0 1 1.57
-  name "road(3)"
-  width 10
-  numberOfLanes 1
-  rightBorder FALSE
-  leftBorder FALSE
-  length 70
 }

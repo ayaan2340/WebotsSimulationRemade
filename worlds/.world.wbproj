@@ -7,3 +7,4 @@ centralWidgetVisible: 1
 orthographicViewHeight: 1
 textFiles: 1 "worlds/world.wbt" "controllers/car_controller/car_controller.py"
 consoles: Console:All:All
+renderingDevicePerspectives: car:camera;1;2.89063;0;5.77266e-13
