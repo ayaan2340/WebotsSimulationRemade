@@ -21,7 +21,7 @@ class CarController(Supervisor):
         
         self.kp = 0.05  # Proportional gain
         self.ki = 0  # Integral gain
-        self.kd = 8   # Derivative gain
+        self.kd = 4   # Derivative gain
         
         self.prev_error = 0
         self.integral = 0
@@ -60,121 +60,93 @@ class CarController(Supervisor):
         height = self.camera.getHeight()
         image = np.frombuffer(image, np.uint8).reshape((height, width, 4))
         
-        # Convert to grayscale
-        gray = cv2.cvtColor(image, cv2.COLOR_BGRA2GRAY)
+        # Convert to grayscale and apply thresholding
+        gray_image = cv2.cvtColor(image, cv2.COLOR_BGRA2GRAY)
+        blurred = cv2.GaussianBlur(gray_image, (5, 5), 0)
+        _, thresh = cv2.threshold(blurred, 127, 255, cv2.THRESH_BINARY)
         
-        # Apply threshold to isolate road
-        _, binary = cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY)
-        
-        # Apply bird's eye view transformation
-        src_points = np.float32([[0, height], [width, height], 
-                                [0, height//2], [width, height//2]])
-        dst_points = np.float32([[0, height], [width, height],
-                                [0, 0], [width, 0]])
-        
-        matrix = cv2.getPerspectiveTransform(src_points, dst_points)
-        warped = cv2.warpPerspective(binary, matrix, (width, height))
-        cv2.imwrite("warped.png", warped)
-        return warped
+        return thresh
 
     def get_road_center_error(self):
-        warped = self.process_camera_image()
-        
-        if warped is None:
+        image = self.process_camera_image()
+        if image is None:
             return 0
             
-        height, width = warped.shape
+        height, width = image.shape
         
-        # Define region of interest for lane detection
-        roi_height = height // 3
-        roi = warped[height-roi_height:height, :]
+        # Define parameters for sliding windows
+        n_windows = 9
+        window_height = height // n_windows
+        margin = width // 10  # Width of the window
         
-        # Find lane pixels using histogram
-        histogram = np.sum(roi, axis=0)
+        # Start at the bottom of the image
+        y_current = height - window_height // 2
+        
+        # Find initial position of lanes using histogram
+        bottom_half = image[height//2:, :]
+        histogram = np.sum(bottom_half, axis=0)
         midpoint = width // 2
         
-        # Find peaks in left and right halves
-        left_x = np.argmax(histogram[:midpoint])
-        right_x = np.argmax(histogram[midpoint:]) + midpoint
+        # Find the peak of the left and right halves of the histogram
+        left_x_base = np.argmax(histogram[:midpoint])
+        right_x_base = np.argmax(histogram[midpoint:]) + midpoint
         
-        # If no clear peaks are found, use fallback values
-        if histogram[left_x] == 0:
-            left_x = width * 0.25
-        if histogram[right_x] == 0:
-            right_x = width * 0.75
+        # Current positions to be updated for each window
+        left_x_current = left_x_base
+        right_x_current = right_x_base
         
-        # Calculate road center
-        road_center = (left_x + right_x) / 2
+        left_lane_pts = []
+        right_lane_pts = []
+        
+        # Step through the windows one by one
+        for window in range(n_windows):
+            # Identify window boundaries
+            win_y_low = height - (window + 1) * window_height
+            win_y_high = height - window * window_height
+            
+            # Find nonzero pixels within the window
+            good_left_inds = []
+            good_right_inds = []
+            
+            if left_x_current != 0:  # If we found left lane
+                win_x_left_low = max(0, left_x_current - margin)
+                win_x_left_high = min(width, left_x_current + margin)
+                img_window = image[win_y_low:win_y_high, win_x_left_low:win_x_left_high]
+                if img_window.any():
+                    good_left_inds = np.argmax(np.sum(img_window, axis=0)) + win_x_left_low
+                    left_lane_pts.append((good_left_inds, (win_y_low + win_y_high) // 2))
+                    left_x_current = good_left_inds
+                    
+            if right_x_current != 0:  # If we found right lane
+                win_x_right_low = max(0, right_x_current - margin)
+                win_x_right_high = min(width, right_x_current + margin)
+                img_window = image[win_y_low:win_y_high, win_x_right_low:win_x_right_high]
+                if img_window.any():
+                    good_right_inds = np.argmax(np.sum(img_window, axis=0)) + win_x_right_low
+                    right_lane_pts.append((good_right_inds, (win_y_low + win_y_high) // 2))
+                    right_x_current = good_right_inds
+                    
+        bottom_third = -len(left_lane_pts)//3
+        # Calculate road center from detected lane points
+        if len(left_lane_pts) > 0 and len(right_lane_pts) > 0:
+            # Use the average of bottom third of detected points
+            left_x = np.mean([pt[0] for pt in left_lane_pts[bottom_third:]])
+            right_x = np.mean([pt[0] for pt in right_lane_pts[bottom_third:]])
+            road_center = (left_x + right_x) / 2
+        elif len(left_lane_pts) > 0:
+            left_x = np.mean([pt[0] for pt in left_lane_pts[bottom_third:]])
+            road_center = left_x + width//4
+        elif len(right_lane_pts) > 0:
+            right_x = np.mean([pt[0] for pt in right_lane_pts[bottom_third:]])
+            road_center = right_x - width//4
+        else:
+            return 0
+        
+        # Calculate error relative to the bottom center of the image
         car_position = width / 2
-        
-        # Calculate normalized error (-1 to 1)
-        error = (road_center - car_position) / (width / 2)
-        
-        # Apply smoothing to error
-        error = np.clip(error, -1, 1)
+        error = (road_center - car_position) / (width / 2)  # Normalize to [-1, 1]
         return error
 
-    def detect_curve(self):
-        warped = self.process_camera_image()
-        if warped is None:
-            return 0
-            
-        height, width = warped.shape
-        
-        # Analyze multiple horizontal slices
-        slices = 5
-        slice_height = height // slices
-        centers = []
-        
-        for i in range(slices):
-            y_start = height - (i + 1) * slice_height
-            y_end = height - i * slice_height
-            slice_img = warped[y_start:y_end, :]
-            
-            # Find road boundaries in slice
-            histogram = np.sum(slice_img, axis=0)
-            midpoint = width // 2
-            left_x = np.argmax(histogram[:midpoint])
-            right_x = np.argmax(histogram[midpoint:]) + midpoint
-            
-            if histogram[left_x] > 0 and histogram[right_x] > 0:
-                center = (left_x + right_x) / 2
-                centers.append(center)
-        
-        if len(centers) > 1:
-            # Calculate curve direction from center points
-            curve = (centers[-1] - centers[0]) / width
-            return curve
-        return 0
-
-    def pid_control(self):
-        error = self.get_road_center_error()
-        curve = self.detect_curve()
-        print(error)
-        # Combine lateral error and curve detection
-        combined_error = error + 0.5 * curve
-        
-        self.integral += combined_error
-        derivative = combined_error - self.prev_error
-        
-        # Adjust PID gains based on curve detection
-        if abs(curve) > 0.2:
-            kp = self.kp * 1.5  # Increase proportional gain for curves
-            kd = self.kd * 0.8  # Reduce derivative gain for smoother curve handling
-        else:
-            kp = self.kp
-            kd = self.kd
-        
-        steering_angle = (kp * combined_error) + \
-                        (self.ki * self.integral) + \
-                        (kd * derivative)
-        
-        # Clamp steering angle
-        steering_angle = max(-max_steering_angle, min(max_steering_angle, steering_angle))
-        self.prev_error = combined_error
-        
-        return steering_angle
-        
     def build_roads(self):
         global road_width, road_length
         root = self.getRoot()
@@ -224,6 +196,26 @@ class CarController(Supervisor):
         # children_field.importMFNodeFromString(-1, create_vertical_road(20, 0))
     
 
+    def pid_control(self):
+        error = self.get_road_center_error()
+        
+        # Reduce integral windup
+        self.integral = np.clip(self.integral + error, -1.0, 1.0)
+        derivative = error - self.prev_error
+        
+        # Adjust PID gains based on error magnitude
+        if abs(error) > 0.5:
+            kp = self.kp * 1.5  # Increase proportional gain for large errors
+            kd = self.kd * 0.5  # Reduce derivative term to prevent oscillation
+        else:
+            kp = self.kp
+            kd = self.kd
+        
+        steering_angle = (kp * error) + (self.ki * self.integral) + (kd * derivative)
+        steering_angle = max(-max_steering_angle, min(max_steering_angle, steering_angle))
+        self.prev_error = error
+        return steering_angle
+        
     def drive_autonomously(self):
         self.car_node.getField("rotation").setSFRotation([0, 0, 1, random.random() * 6])
         while self.step(self.time_step) != -1:
