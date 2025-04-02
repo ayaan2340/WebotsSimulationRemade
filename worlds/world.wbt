@@ -1,6 +1,5 @@
 #VRML_SIM R2025a utf8
 
-EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/backgrounds/protos/TexturedBackground.proto"
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/backgrounds/protos/TexturedBackgroundLight.proto"
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/floors/protos/RectangleArena.proto"
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/appearances/protos/Parquetry.proto"
@@ -18,12 +17,10 @@ WorldInfo {
 }
 Viewpoint {
   fieldOfView 1.2
-  orientation -0.23046225129110487 0.7936713255379542 0.5630035326253847 0.9523525656823825
-  position -63.690947507961575 -20.008034464987386 55.882502945558784
+  orientation -0.28146790842906505 0.5307576679850315 0.7994198611491077 1.1714375632342426
+  position -30.144366002009846 -19.942620636789055 19.319113401595736
   follow "car"
   followType "None"
-}
-TexturedBackground {
 }
 TexturedBackgroundLight {
 }
@@ -34,26 +31,35 @@ RectangleArena {
   }
 }
 DEF car BmwX5 {
-  hidden position_0_0 0.060477331724668223
-  hidden position2_0_0 26806.240214571986
-  hidden position_0_1 0.06064289728834898
-  hidden position2_0_1 26805.607334905468
-  hidden position_0_2 17774.665407329503
-  hidden position_0_3 18589.42409838398
-  hidden rotation_1 -0.030230221959334024 -0.9994160323140651 -0.01592884282994605 2.172175878088572
-  hidden rotation_2 0.0303019609040462 0.999051009991121 -0.031286907822452734 1.5397634466786032
-  hidden rotation_3 0 -1 0 5.8173586256325125
-  hidden rotation_4 0 1 0 3.7619597467640915
-  translation 19.3297 22.8581 0.318272
-  rotation 0.00222031731319971 -1.1606312881321987e-05 0.9999975350251231 3.125965465001674
+  hidden position_0_0 0.05096261949108498
+  hidden position2_0_0 26829.043424508953
+  hidden position_0_1 0.052067286555795726
+  hidden position2_0_1 26828.413230662027
+  hidden position_0_2 17795.53097188463
+  hidden position_0_3 18610.98961262413
+  hidden linearVelocity_0 -7.642867657396058 -1.4070771895698393 0.0003922810919067004
+  hidden angularVelocity_0 0.026772202901000304 0.006110523231595465 -0.120417662436362
+  hidden rotation_1 0.024251026477496385 0.9515122175812166 -0.30665353007663765 0.16584438331670912
+  hidden linearVelocity_1 -7.781759764627215 -1.223077459448845 0.002458175886093411
+  hidden angularVelocity_1 3.2655807333330866 -21.807010236490743 -0.3248169786345536
+  hidden rotation_2 -0.025979831146198243 -0.9977075172241706 -0.06248806644469257 0.7896594698900677
+  hidden linearVelocity_2 -7.585755783739517 -1.1912561827391361 0.0020777543376865916
+  hidden angularVelocity_2 3.2418338990222315 -21.810643493248808 -0.31553377792238935
+  hidden rotation_3 0 -1 0 1.55018195204035
+  hidden linearVelocity_3 -7.708629425599853 -1.5762276466379317 0.0013901128934565628
+  hidden angularVelocity_3 4.193068504383352 -20.569794505319926 -0.1544024246713125
+  hidden rotation_4 0 1 0 0.19473275819407787
+  hidden linearVelocity_4 -7.516608207860687 -1.537538186424421 0.001349033061890331
+  hidden angularVelocity_4 4.087921339024685 -20.056972629146816 -0.15370698249977469
+  translation 11.410434628711759 21.318979929621126 0.3119273928077214
+  rotation 0.004472668503270508 -0.0004996422960406946 0.9999898727457371 -2.9459462283415063
   name "car"
   controller "car_controller"
   supervisor TRUE
   sensorsSlotTop [
     Camera {
-      translation 1 1 1
-      width 196
-      height 128
+      translation 0.8 0 1.2
+      rotation 0 1 0 0
       children [
         Pose {
           rotation 0 -1 0 1.5708
@@ -72,11 +78,14 @@ DEF car BmwX5 {
           ]
         }
       ]
+      fieldOfView 1
+      width 196
+      height 128
     }
   ]
 }
 DEF redEnd Robot {
-  translation 20 20 0
+  translation 30.465 43.2979 3.33227e-14
   children [
     Shape {
       appearance PBRAppearance {
@@ -93,4 +102,12 @@ DEF redEnd Robot {
     size 1 1 10
   }
   supervisor TRUE
+}
+StraightRoadSegment {
+  translation -150 20 0.1
+  width 10
+  numberOfLanes 1
+  rightBorder FALSE
+  leftBorder FALSE
+  length 300
 }

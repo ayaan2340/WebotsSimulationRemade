@@ -19,9 +19,9 @@ class CarController(Supervisor):
             raise ValueError("Robot node with DEF name 'car' not found.")
         self.initialize_devices()
         
-        self.kp = 0.05  # Proportional gain
+        self.kp = 0.5 # Proportional gain
         self.ki = 0  # Integral gain
-        self.kd = 4   # Derivative gain
+        self.kd = 0.2   # Derivative gain
         
         self.prev_error = 0
         self.integral = 0
@@ -60,92 +60,95 @@ class CarController(Supervisor):
         height = self.camera.getHeight()
         image = np.frombuffer(image, np.uint8).reshape((height, width, 4))
         
-        # Convert to grayscale and apply thresholding
+        # Convert to grayscale for edge detection
         gray_image = cv2.cvtColor(image, cv2.COLOR_BGRA2GRAY)
+        
+        # Apply Gaussian blur to reduce noise
         blurred = cv2.GaussianBlur(gray_image, (5, 5), 0)
-        _, thresh = cv2.threshold(blurred, 127, 255, cv2.THRESH_BINARY)
         
-        return thresh
-
+        # Edge detection
+        edges = cv2.Canny(blurred, 50, 150)
+        return edges
+    
     def get_road_center_error(self):
-        image = self.process_camera_image()
-        if image is None:
+        edges = self.process_camera_image()
+        if edges is None:
             return 0
-            
-        height, width = image.shape
-        
-        # Define parameters for sliding windows
-        n_windows = 9
-        window_height = height // n_windows
-        margin = width // 10  # Width of the window
-        
-        # Start at the bottom of the image
-        y_current = height - window_height // 2
-        
-        # Find initial position of lanes using histogram
-        bottom_half = image[height//2:, :]
-        histogram = np.sum(bottom_half, axis=0)
-        midpoint = width // 2
-        
-        # Find the peak of the left and right halves of the histogram
-        left_x_base = np.argmax(histogram[:midpoint])
-        right_x_base = np.argmax(histogram[midpoint:]) + midpoint
-        
-        # Current positions to be updated for each window
-        left_x_current = left_x_base
-        right_x_current = right_x_base
-        
-        left_lane_pts = []
-        right_lane_pts = []
-        
-        # Step through the windows one by one
-        for window in range(n_windows):
-            # Identify window boundaries
-            win_y_low = height - (window + 1) * window_height
-            win_y_high = height - window * window_height
-            
-            # Find nonzero pixels within the window
-            good_left_inds = []
-            good_right_inds = []
-            
-            if left_x_current != 0:  # If we found left lane
-                win_x_left_low = max(0, left_x_current - margin)
-                win_x_left_high = min(width, left_x_current + margin)
-                img_window = image[win_y_low:win_y_high, win_x_left_low:win_x_left_high]
-                if img_window.any():
-                    good_left_inds = np.argmax(np.sum(img_window, axis=0)) + win_x_left_low
-                    left_lane_pts.append((good_left_inds, (win_y_low + win_y_high) // 2))
-                    left_x_current = good_left_inds
-                    
-            if right_x_current != 0:  # If we found right lane
-                win_x_right_low = max(0, right_x_current - margin)
-                win_x_right_high = min(width, right_x_current + margin)
-                img_window = image[win_y_low:win_y_high, win_x_right_low:win_x_right_high]
-                if img_window.any():
-                    good_right_inds = np.argmax(np.sum(img_window, axis=0)) + win_x_right_low
-                    right_lane_pts.append((good_right_inds, (win_y_low + win_y_high) // 2))
-                    right_x_current = good_right_inds
-                    
-        bottom_third = -len(left_lane_pts)//3
-        # Calculate road center from detected lane points
-        if len(left_lane_pts) > 0 and len(right_lane_pts) > 0:
-            # Use the average of bottom third of detected points
-            left_x = np.mean([pt[0] for pt in left_lane_pts[bottom_third:]])
-            right_x = np.mean([pt[0] for pt in right_lane_pts[bottom_third:]])
-            road_center = (left_x + right_x) / 2
-        elif len(left_lane_pts) > 0:
-            left_x = np.mean([pt[0] for pt in left_lane_pts[bottom_third:]])
-            road_center = left_x + width//4
-        elif len(right_lane_pts) > 0:
-            right_x = np.mean([pt[0] for pt in right_lane_pts[bottom_third:]])
-            road_center = right_x - width//4
-        else:
+    
+        height, width = edges.shape
+    
+        # Detect lines using Hough Transform
+        lines = cv2.HoughLinesP(edges, 1, np.pi / 180, 30, minLineLength=30, maxLineGap=30)
+        if lines is None:
             return 0
-        
-        # Calculate error relative to the bottom center of the image
+    
+        left_lines = []
+        right_lines = []
+    
+        for line in lines:
+            x1, y1, x2, y2 = line[0]
+            dy = y2 - y1
+            dx = x2 - x1 + 1e-5  # Avoid division by zero
+            slope = dy / dx
+    
+            # Filter lines based on slope and position
+            if abs(slope) < 0.1 or abs(slope) > 200:  # Ignore nearly horizontal lines
+                continue
+    
+            if slope < 0 and x1 < 3 * width / 4:  # Left lane lines
+                left_lines.append(line)
+            elif slope > 0 and x1 > width / 4:  # Right lane lines
+                right_lines.append(line)
+    
+        # Calculate lane positions
+        left_x = self.calculate_lane_position(left_lines, height)
+        right_x = self.calculate_lane_position(right_lines, height)
+    
+        # If both lanes detected
+        if left_x is not None and right_x is not None:
+            lane_center = (left_x + right_x) / 2
+        elif left_x is not None:  # Only left lane detected
+            if (left_x < 0):
+                lane_center = left_x - road_width/2;
+            else:
+                lane_center = left_x + road_width / 2
+        elif right_x is not None:  # Only right lane detected
+            if (right_x > width):
+                lane_center = right_x + road_width / 2;
+            else:
+                lane_center = right_x - road_width / 2
+        else:  # No lanes detected
+            return 0
+    
         car_position = width / 2
-        error = (road_center - car_position) / (width / 2)  # Normalize to [-1, 1]
+        print("Center:", lane_center)
+        print("Left:", left_x)
+        print("Right:", right_x)
+        error = (lane_center - car_position) / width
+        print("Error:", error)
         return error
+
+    def calculate_lane_position(self, lines, height):
+        if not lines:
+            return None
+            
+        # Extract points from lines
+        points = []
+        for line in lines:
+            x1, y1, x2, y2 = line[0]
+            points.append([x1, y1])
+            points.append([x2, y2])
+        
+        points = np.array(points)
+        
+        # Perform linear regression
+        try:
+            coeffs = np.polyfit(points[:, 1], points[:, 0], deg=1)
+            # Calculate x position at bottom of image (height)
+            x_pos = np.polyval(coeffs, height)
+            return x_pos
+        except:
+            return None
 
     def build_roads(self):
         global road_width, road_length
@@ -198,29 +201,24 @@ class CarController(Supervisor):
 
     def pid_control(self):
         error = self.get_road_center_error()
-        
-        # Reduce integral windup
-        self.integral = np.clip(self.integral + error, -1.0, 1.0)
+        self.integral += error
         derivative = error - self.prev_error
         
-        # Adjust PID gains based on error magnitude
-        if abs(error) > 0.5:
-            kp = self.kp * 1.5  # Increase proportional gain for large errors
-            kd = self.kd * 0.5  # Reduce derivative term to prevent oscillation
-        else:
-            kp = self.kp
-            kd = self.kd
-        
-        steering_angle = (kp * error) + (self.ki * self.integral) + (kd * derivative)
-        steering_angle = max(-max_steering_angle, min(max_steering_angle, steering_angle))
+        steering_angle = (self.kp * error) + (self.ki * self.integral) + (self.kd * derivative)
+        steering_angle = max(-max_steering_angle, min(max_steering_angle, steering_angle))  # Clamp angle
         self.prev_error = error
+        print(derivative)
         return steering_angle
         
     def drive_autonomously(self):
         self.car_node.getField("rotation").setSFRotation([0, 0, 1, random.random() * 6])
         while self.step(self.time_step) != -1:
             steering_angle = self.pid_control()
-            self.set_speed(30)
+            if (steering_angle == 0):
+                steering_angle = 0.5
+                self.set_speed(10)
+            else:
+                self.set_speed(30)
             self.set_steering(steering_angle)
 
 
